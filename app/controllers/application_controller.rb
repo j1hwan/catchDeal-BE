@@ -7,7 +7,7 @@ class ApplicationController < ActionController::Base
 	protected
 	
 	def jwt_authenticate_request!
-		
+		@hello = "world"
 		begin
 			JWT.decode(request.headers['Authorization'], ENV["SECRET_KEY_BASE"])
 			unless user_id_in_token?
@@ -20,7 +20,7 @@ class ApplicationController < ActionController::Base
 		end
 		
 		begin
-			@current_user = AppUser.find(auth_token[:app_user_id])
+			@currentAppUser = AppUser.find(auth_token[:app_user_id])
 		rescue
 			render json: { errors: ['Invalid token'] }, status: :unauthorized
 		end

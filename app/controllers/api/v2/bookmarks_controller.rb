@@ -1,4 +1,4 @@
-class Api::V2::BookmarksController < ApplicationController
+class Api::V2::BookmarksController < Api::V2::BaseController
   require 'action_view'
   require 'action_view/helpers'
   include ActionView::Helpers::DateHelper
@@ -14,13 +14,13 @@ class Api::V2::BookmarksController < ApplicationController
                 render json: { errors: ['유효하지 않는 product_id'] }, status: :unauthorized
             
             elsif product != nil	  
-                @bookMark = BookMark.find_by(app_user_id: current_user.id, hit_product_id: product.id)
+                @bookMark = BookMark.find_by(app_user_id: @currentAppUser.id, hit_product_id: product.id)
             
                 if @bookMark.nil?
-                    @bookMarkResult = BookMark.create(app_user_id: current_user.id, hit_product_id: product.id)
+                    @bookMarkResult = BookMark.create(app_user_id: @currentAppUser.id, hit_product_id: product.id)
                     @dataJson = { :message => "북마크가 생성되었습니다.",
                                     :bookMark => {
-                                    :userId => current_user.id,
+                                    :userId => @currentAppUser.id,
                                     :hitProductTitle => BookMark.eager_load(:hit_product).find(@bookMarkResult.id).hit_product.title
                                     }
                                 }
@@ -37,17 +37,24 @@ class Api::V2::BookmarksController < ApplicationController
     end
     
     def index
-        arr = Array.new
-        
-        orderStack = 1
-        BookMark.eager_load(:hit_product).where(app_user_id: current_user.id).each do |t|
-            arr.push([orderStack, t.hit_product.product_id, t.hit_product.title, t.hit_product.view, t.hit_product.comment, t.hit_product.like, t.hit_product.score, "#{time_ago_in_words(t.hit_product.date)} 전", t.hit_product.image_url, t.hit_product.is_sold_out, t.hit_product.dead_check, t.hit_product.is_title_changed, t.hit_product.url, t.hit_product.redirect_url, t.hit_product.id])
-            orderStack += 1
-        end
-        
-        @result = bookmark_product_list_data_push(arr, current_user.id)
-        
-        render :json => { :userId => current_user.id, :bookmark => @result }
+        sql = "
+  		    SELECT DISTINCT *, CASE WHEN book_marks IS NULL THEN false ELSE true END AS is_bookmark FROM hit_products
+				LEFT JOIN book_marks ON book_marks.hit_product_id = hit_products.id
+			WHERE book_marks.app_user_id = #{@currentAppUser.id}
+			ORDER BY date DESC;
+      	"
+      	@productData = ActiveRecord::Base.connection.execute(sql)
+      	
+      	arr = Array.new
+      	
+      	orderStack = 1
+      	@productData.each do |data|
+      		arr.push([orderStack, data["keyword_title"], data["product_id"], data["title"], data["view"], data["comment"], data["like"], data["score"], "#{time_ago_in_words(data["date"])} 전", data["image_url"], data["is_sold_out"], data["dead_check"], data["is_title_changed"], data["url"], data["redirect_url"], data["is_bookmark"]])
+      		orderStack += 1
+      	end
+      	
+      	@result = keyword_pushalarm_list_data_push(arr, @currentAppUser.id)
+      	render :json => { :userId => @currentAppUser.id, :pushList => @result }
     end
     
     def create
@@ -58,12 +65,12 @@ class Api::V2::BookmarksController < ApplicationController
             render json: { errors: ['유효하지 않는 product_id'] }, :status => :bad_request
         
         elsif product != nil	  
-            @bookMark = BookMark.find_by(app_user_id: current_user.id, hit_product_id: product.id)
+            @bookMark = BookMark.find_by(app_user_id: @currentAppUser.id, hit_product_id: product.id)
         
             if @bookMark.nil?
-                @bookMarkResult = BookMark.create(app_user_id: current_user.id, hit_product_id: product.id)
+                @bookMarkResult = BookMark.create(app_user_id: @currentAppUser.id, hit_product_id: product.id)
                 @dataJson = { :message => "북마크가 생성되었습니다.",
-                            :bookMark => { :userId => current_user.id,
+                            :bookMark => { :userId => @currentAppUser.id,
                                             :hitProductTitle => BookMark.eager_load(:hit_product).find(@bookMarkResult.id).hit_product.title
                                         }
                             }
@@ -83,7 +90,7 @@ class Api::V2::BookmarksController < ApplicationController
             render json: { errors: ['유효하지 않는 product_id'] }, :status => :bad_request
         
         elsif product != nil
-            @bookMark = BookMark.find_by(app_user_id: current_user.id, hit_product_id: product.id)
+            @bookMark = BookMark.find_by(app_user_id: @currentAppUser.id, hit_product_id: product.id)
         
             if @bookMark != nil
                 @bookMark.destroy

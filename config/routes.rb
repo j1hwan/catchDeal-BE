@@ -18,13 +18,6 @@ Rails.application.routes.draw do
   get 'hit_products/rank' => 'hit_products#rank'
   get 'hit-products/rank' => 'hit_products#rank'
 
-  get 'hit_products/search' => 'hit_products#search'
-  get 'hit-products/search' => 'hit_products#search'
-
-  ## JWT 토큰 생성 및 테스트
-  post 'auth_user' => 'authentication#authenticate_user'
-  post 'auth-user' => 'authentication#authenticate_user'
-
   ## 통신 테스트
   get 'apis/test' => "apis/test"
   
@@ -58,19 +51,34 @@ Rails.application.routes.draw do
   
   
   # ------------------------------------ v 2.0 ---------------------------------------------
-  namespace :api do
-    namespace :v2 do
+  # [API 설계] https://collectiveidea.com/blog/archives/2013/06/13/building-awesome-rails-apis-part-1
+  
+  namespace :api, :path => "" do
+    namespace :v2, :path => "" do
       resources :keyword_pushalarms, :only => [:index, :create, :destroy], path: "keyword-pushalarms"
       resource :keyword_pushalarms, :except => [:index, :show, :new, :create, :edit, :update], path: "keyword-pushalarms" do
         post 'send-pushalarm' => 'keyword_pushalarms#send_pushalarm'
         patch 'user-config' => 'keyword_pushalarms#user_config'
         get 'user-status' => 'keyword_pushalarms#status'
         post 'combine' => 'keyword_pushalarms#combine'
-        get 'test' => 'keyword_pushalarms#test'
       end
       
-      resource :bookmarks, :only => [:index, :create, :destroy] do
+      resources :bookmarks, :only => [:index]
+      resource :bookmarks, :only => [:create, :destroy] do
         post 'combine' => 'bookmarks#combine'
+      end
+      resources :notices, :only => [:index]
+      
+      resource :authentication, :only => [], :path => "" do
+        post 'auth-user' => 'authentication#authenticate_user'
+        get 'auth-user' => 'authentication#auth_test'
+      end
+      
+      resources :hit_products, :only => [:index], :path => "hit-products"
+      resource :hit_products, :only => [], :path => "hit-products" do
+        get 'search' => 'hit_products#search'
+        get 'platform' => 'hit_products#platform'
+        get 'rank' => 'hit_products#rank'
       end
     end
   end

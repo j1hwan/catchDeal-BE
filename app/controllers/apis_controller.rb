@@ -6,7 +6,7 @@ class ApisController < ApplicationController
   before_action :jwt_authenticate_request!
 
   def test
-		@dataJson = { :message => "[Test] Token 인증 되었습니다! :D", :user => { :appPlayerId => current_user.id, :appPlayer => current_user.app_player, :lastTokenGetDate => current_user.last_token } }
+		@dataJson = { :message => "[Test] Token 인증 되었습니다! :D", :user => { :appPlayerId => @currentAppUser.id, :appPlayer => @currentAppUser.app_player, :lastTokenGetDate => @currentAppUser.last_token } }
 		render :json => @dataJson, :except => [:id, :created_at, :updated_at, :category]
   end
   
@@ -45,13 +45,13 @@ class ApisController < ApplicationController
 				render json: { errors: ['유효하지 않는 product_id'] }, status: :unauthorized
 			
 			elsif product != nil	  
-				@bookMark = BookMark.find_by(app_user_id: current_user.id, hit_product_id: product.id)
+				@bookMark = BookMark.find_by(app_user_id: @currentAppUser.id, hit_product_id: product.id)
 	
 				if @bookMark.nil?
-					@bookMarkResult = BookMark.create(app_user_id: current_user.id, hit_product_id: product.id)
+					@bookMarkResult = BookMark.create(app_user_id: @currentAppUser.id, hit_product_id: product.id)
 					@dataJson = { :message => "북마크가 생성되었습니다.",
 												:bookMark => {
-													:userId => current_user.id,
+													:userId => @currentAppUser.id,
 													:hitProductTitle => BookMark.eager_load(:hit_product).find(@bookMarkResult.id).hit_product.title
 												}
 											}
@@ -75,12 +75,12 @@ class ApisController < ApplicationController
 			render json: { errors: ['유효하지 않는 product_id'] }, :status => :bad_request
 		
 		elsif product != nil	  
-			@bookMark = BookMark.find_by(app_user_id: current_user.id, hit_product_id: product.id)
+			@bookMark = BookMark.find_by(app_user_id: @currentAppUser.id, hit_product_id: product.id)
 
 			if @bookMark.nil?
-				@bookMarkResult = BookMark.create(app_user_id: current_user.id, hit_product_id: product.id)
+				@bookMarkResult = BookMark.create(app_user_id: @currentAppUser.id, hit_product_id: product.id)
 				@dataJson = { :message => "북마크가 생성되었습니다.",
-											:bookMark => { :userId => current_user.id,
+											:bookMark => { :userId => @currentAppUser.id,
 											:hitProductTitle => BookMark.eager_load(:hit_product).find(@bookMarkResult.id).hit_product.title }
 										}
 
@@ -99,7 +99,7 @@ class ApisController < ApplicationController
 			render json: { errors: ['유효하지 않는 product_id'] }, :status => :bad_request
 		
 		elsif product != nil
-			@bookMark = BookMark.find_by(app_user_id: current_user.id, hit_product_id: product.id)
+			@bookMark = BookMark.find_by(app_user_id: @currentAppUser.id, hit_product_id: product.id)
 
 			if @bookMark != nil
 				@bookMark.destroy
@@ -114,7 +114,7 @@ class ApisController < ApplicationController
 		arr = Array.new
 		
 		orderStack = 1
-		BookMark.eager_load(:hit_product).where(app_user_id: current_user.id).each do |t|
+		BookMark.eager_load(:hit_product).where(app_user_id: @currentAppUser.id).each do |t|
 			arr.push([orderStack, t.hit_product.product_id, t.hit_product.title, t.hit_product.view, t.hit_product.comment, t.hit_product.like, t.hit_product.score, "#{time_ago_in_words(t.hit_product.date)} 전", t.hit_product.image_url, t.hit_product.is_sold_out, t.hit_product.dead_check, t.hit_product.is_title_changed, t.hit_product.url, t.hit_product.redirect_url])
 			orderStack += 1
 		end
@@ -124,21 +124,28 @@ class ApisController < ApplicationController
 			@result.push(bookmark_list_data_push(t))
 		end
 		
-		render :json => { :userId => current_user.id, :bookmark => @result }
+		render :json => { :userId => @currentAppUser.id, :bookmark => @result }
   end
   
   def bookmark_product_list
-		arr = Array.new
-		
-		orderStack = 1
-		BookMark.eager_load(:hit_product).where(app_user_id: current_user.id).each do |t|
-			arr.push([orderStack, t.hit_product.product_id, t.hit_product.title, t.hit_product.view, t.hit_product.comment, t.hit_product.like, t.hit_product.score, "#{time_ago_in_words(t.hit_product.date)} 전", t.hit_product.image_url, t.hit_product.is_sold_out, t.hit_product.dead_check, t.hit_product.is_title_changed, t.hit_product.url, t.hit_product.redirect_url, t.hit_product.id])
-			orderStack += 1
-		end
-		
-		@result = bookmark_product_list_data_push(arr, current_user.id)
-		
-		render :json => { :userId => current_user.id, :bookmark => @result }
+		sql = "
+  		SELECT DISTINCT *, CASE WHEN book_marks IS NULL THEN false ELSE true END AS is_bookmark FROM hit_products
+				LEFT JOIN book_marks ON book_marks.hit_product_id = hit_products.id
+			WHERE book_marks.app_user_id = #{@currentAppUser.id}
+			ORDER BY date DESC;
+  	"
+  	@productData = ActiveRecord::Base.connection.execute(sql)
+  	
+  	arr = Array.new
+  	
+  	orderStack = 1
+  	@productData.each do |data|
+  		arr.push([orderStack, data["keyword_title"], data["product_id"], data["title"], data["view"], data["comment"], data["like"], data["score"], "#{time_ago_in_words(data["date"])} 전", data["image_url"], data["is_sold_out"], data["dead_check"], data["is_title_changed"], data["url"], data["redirect_url"], data["is_bookmark"]])
+  		orderStack += 1
+  	end
+  	
+  	@result = keyword_pushalarm_list_data_push(arr, @currentAppUser.id)
+  	render :json => { :userId => @currentAppUser.id, :pushList => @result }
   end
   
   
@@ -150,8 +157,8 @@ class ApisController < ApplicationController
 	  	if maxPushCount < 0
 	  		render json: {errors: ['pushCount 수치가 음수입니다. (Reject request)']}, :status => :bad_request
 	  	else
-				current_user.update(alarm_status: json_params["userConfig"]["alarmStatus"], max_push_count: maxPushCount)
-		  	render :json => { :user => { :userId => current_user.id, :alarmStatus=> current_user.alarm_status, :maxPushCount => current_user.max_push_count } }
+				@currentAppUser.update(alarm_status: json_params["userConfig"]["alarmStatus"], max_push_count: maxPushCount)
+		  	render :json => { :user => { :userId => @currentAppUser.id, :alarmStatus=> @currentAppUser.alarm_status, :maxPushCount => @currentAppUser.max_push_count } }
 	  	end
   	rescue
   		render json: {errors: ['Invalid Body']}, :status => :bad_request
@@ -161,7 +168,7 @@ class ApisController < ApplicationController
   def keyword_user_status
   	arr = Array.new
 		
-		KeywordAlarm.where(app_user_id: current_user.id).each do |keyword|
+		KeywordAlarm.where(app_user_id: @currentAppUser.id).each do |keyword|
 			arr << keyword.title
 		end
 		
@@ -169,19 +176,19 @@ class ApisController < ApplicationController
 			arr = []
 		end
 		
-  	render :json => { :userId => current_user.id, :userInfo => { :alarmStatus=> current_user.alarm_status, :maxPushCount => current_user.max_push_count, :keywordList => arr } }
+  	render :json => { :userId => @currentAppUser.id, :userInfo => { :alarmStatus=> @currentAppUser.alarm_status, :maxPushCount => @currentAppUser.max_push_count, :keywordList => arr } }
   end
   
   def keyword_combine
   	begin
 	    json_params = JSON.parse(request.body.read)
-		keyword = KeywordAlarm.find_by(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+		keyword = KeywordAlarm.find_by(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
 		  
 	    if keyword.nil?
-			@keywordResult = KeywordAlarm.create(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+			@keywordResult = KeywordAlarm.create(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
 			@dataJson = { :message => "'#{@keywordResult.title}' 키워드가 생성되었습니다.",
 						  :keyword => {
-										:userId => current_user.id,
+										:userId => @currentAppUser.id,
 										:keywordTitle => @keywordResult.title
 									  }
 						}
@@ -199,13 +206,13 @@ class ApisController < ApplicationController
   def keyword_create
   	begin
 	  	json_params = JSON.parse(request.body.read)
-			keyword = KeywordAlarm.find_by(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+			keyword = KeywordAlarm.find_by(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
 		  
 	    if keyword.nil?
-			@keywordResult = KeywordAlarm.create(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+			@keywordResult = KeywordAlarm.create(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
 			@dataJson = { :message => "'#{@keywordResult.title}' 키워드가 생성되었습니다.",
 										:keyword => {
-																	:userId => current_user.id,
+																	:userId => @currentAppUser.id,
 																	:keywordTitle => @keywordResult.title
 																}
 									}
@@ -223,7 +230,7 @@ class ApisController < ApplicationController
   def keyword_destroy
   	begin
 	  	json_params = JSON.parse(request.body.read)
-			keyword = KeywordAlarm.find_by(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+			keyword = KeywordAlarm.find_by(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
 		  
 	    if keyword.nil?
 				render json: { errors: ['북마크가 존재하지 않습니다.'] }, status: :forbidden
@@ -242,7 +249,7 @@ class ApisController < ApplicationController
   		SELECT DISTINCT *, CASE WHEN book_marks IS NULL THEN false ELSE true END AS is_bookmark FROM hit_products
   			LEFT JOIN book_marks ON book_marks.hit_product_id = hit_products.id
   			LEFT JOIN keyword_pushalarm_lists ON keyword_pushalarm_lists.hit_product_id = hit_products.id
-  		WHERE keyword_pushalarm_lists.app_user_id = #{current_user.id}
+  		WHERE keyword_pushalarm_lists.app_user_id = #{@currentAppUser.id}
   		ORDER BY date DESC;
   	"
   	@productData = ActiveRecord::Base.connection.execute(sql)
@@ -255,7 +262,7 @@ class ApisController < ApplicationController
   		orderStack += 1
   	end
   	
-  	@result = keyword_pushalarm_list_data_push(arr, current_user.id)
-  	render :json => { :userId => current_user.id, :pushList => @result }
+  	@result = keyword_pushalarm_list_data_push(arr, @currentAppUser.id)
+  	render :json => { :userId => @currentAppUser.id, :pushList => @result }
   end
 end

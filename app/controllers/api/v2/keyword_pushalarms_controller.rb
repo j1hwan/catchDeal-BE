@@ -1,4 +1,4 @@
-class Api::V2::KeywordPushalarmsController < ApplicationController
+class Api::V2::KeywordPushalarmsController < Api::V2::BaseController
     require 'action_view'
     require 'action_view/helpers'
     include ActionView::Helpers::DateHelper
@@ -38,8 +38,8 @@ class Api::V2::KeywordPushalarmsController < ApplicationController
             if maxPushCount < 0
                 render json: {errors: ['pushCount 수치가 음수입니다. (Reject request)']}, :status => :bad_request
             else
-                current_user.update(alarm_status: json_params["userConfig"]["alarmStatus"], max_push_count: maxPushCount)
-                render :json => { :user => { :userId => current_user.id, :alarmStatus=> current_user.alarm_status, :maxPushCount => current_user.max_push_count } }
+                @currentAppUser.update(alarm_status: json_params["userConfig"]["alarmStatus"], max_push_count: maxPushCount)
+                render :json => { :user => { :userId => @currentAppUser.id, :alarmStatus=> @currentAppUser.alarm_status, :maxPushCount => @currentAppUser.max_push_count } }
             end
         rescue
             render json: {errors: ['Invalid Body']}, :status => :bad_request
@@ -49,7 +49,7 @@ class Api::V2::KeywordPushalarmsController < ApplicationController
     def status
         arr = Array.new
         
-        KeywordAlarm.where(app_user_id: current_user.id).each do |keyword|
+        KeywordAlarm.where(app_user_id: @currentAppUser.id).each do |keyword|
             arr << keyword.title
         end
         
@@ -57,19 +57,19 @@ class Api::V2::KeywordPushalarmsController < ApplicationController
             arr = []
         end
         
-        render :json => { :userId => current_user.id, :userInfo => { :alarmStatus=> current_user.alarm_status, :maxPushCount => current_user.max_push_count, :keywordList => arr } }
+        render :json => { :userId => @currentAppUser.id, :userInfo => { :alarmStatus=> @currentAppUser.alarm_status, :maxPushCount => @currentAppUser.max_push_count, :keywordList => arr } }
     end
   
     def combine
         begin
             json_params = JSON.parse(request.body.read)
-            keyword = KeywordAlarm.find_by(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+            keyword = KeywordAlarm.find_by(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
             
             if keyword.nil?
-                @keywordResult = KeywordAlarm.create(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+                @keywordResult = KeywordAlarm.create(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
                 @dataJson = { :message => "'#{@keywordResult.title}' 키워드가 생성되었습니다.",
                                 :keyword => {
-                                    		:userId => current_user.id,
+                                    		:userId => @currentAppUser.id,
                                     		:keywordTitle => @keywordResult.title
     	                    }
                 }
@@ -89,7 +89,7 @@ class Api::V2::KeywordPushalarmsController < ApplicationController
       		SELECT DISTINCT *, CASE WHEN book_marks IS NULL THEN false ELSE true END AS is_bookmark FROM hit_products
       			LEFT JOIN book_marks ON book_marks.hit_product_id = hit_products.id
       			LEFT JOIN keyword_pushalarm_lists ON keyword_pushalarm_lists.hit_product_id = hit_products.id
-      		WHERE keyword_pushalarm_lists.app_user_id = #{current_user.id}
+      		WHERE keyword_pushalarm_lists.app_user_id = #{@currentAppUser.id}
       		ORDER BY date DESC;
       	"
       	@productData = ActiveRecord::Base.connection.execute(sql)
@@ -102,20 +102,20 @@ class Api::V2::KeywordPushalarmsController < ApplicationController
       		orderStack += 1
       	end
       	
-      	@result = keyword_pushalarm_list_data_push(arr, current_user.id)
-      	render :json => { :userId => current_user.id, :pushList => @result }
+      	@result = keyword_pushalarm_list_data_push(arr, @currentAppUser.id)
+      	render :json => { :userId => @currentAppUser.id, :pushList => @result }
     end
   
     def create
       	begin
     	  	json_params = JSON.parse(request.body.read)
-    			keyword = KeywordAlarm.find_by(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+    			keyword = KeywordAlarm.find_by(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
     		  
     	    if keyword.nil?
-    			@keywordResult = KeywordAlarm.create(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+    			@keywordResult = KeywordAlarm.create(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
     			@dataJson = { :message => "'#{@keywordResult.title}' 키워드가 생성되었습니다.",
     										:keyword => {
-    																	:userId => current_user.id,
+    																	:userId => @currentAppUser.id,
     																	:keywordTitle => @keywordResult.title
     																}
     									}
@@ -133,7 +133,7 @@ class Api::V2::KeywordPushalarmsController < ApplicationController
     def destroy
       	begin
     	  	json_params = JSON.parse(request.body.read)
-    			keyword = KeywordAlarm.find_by(app_user_id: current_user.id, title: json_params["alarm"]["keywordTitle"])
+    			keyword = KeywordAlarm.find_by(app_user_id: @currentAppUser.id, title: json_params["alarm"]["keywordTitle"])
     		  
     	    if keyword.nil?
     				render json: { errors: ['북마크가 존재하지 않습니다.'] }, status: :forbidden
