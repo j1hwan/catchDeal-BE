@@ -1,5 +1,5 @@
 # 캐치야, 물어와! : 특가정보 모음집 '캐치딜'
-<div align="center"><img src="/public/img/app_example.png?raw=true" width="500px"></div>
+<div align="center"><img src="/public/img/app_example2.png?raw=true" width="500px"></div>
 
 ## 팀원
 #### 서현석, 김철민, 이인하
