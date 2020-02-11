@@ -58,17 +58,21 @@
 
 
 ## 7. 핵심 코드파일
-1. ```app/controllers/application_controller.rb``` [[applicationController]] Header를 통해 요청받은 JWT 토큰에 대해 유효 검증을 합니다.
-2. ```lib/json_web_token.rb``` [[jwtDecode]] JWT 토큰을 Decode화 합니다.
-3. ```app/controllers/authentication_controller.rb``` [[jwtEncode]] Body Params로 넘어온 데이터를 참조하여 JWT 토큰을 생성합니다.
-4. ```app/controllers/apis_controller.rb``` [[apiController]] API 통신에 있어 JWT 토큰을 기반으로 유저 구분 및 유저에 따라 데이터를 처리 및 Response를 합니다.
-5. ```app/controllers/hit_products_controller.rb``` [[hitProductController]] API 통신에 있어 핫딜 상품 조회, 검색, 1주간 Top 100 순위 상품 조회를 합니다. 
- 
-[applicationController]: /app/controllers/application_controller.rb
+1. ```lib/json_web_token.rb``` [[jwtDecode]] JWT 토큰을 Decode화 합니다.
+2. ```app/controllers/api/v2/base_controller.rb``` [[baseController]] Header를 통해 요청받은 JWT 토큰에 대해 유효 검증을 합니다.
+3. ```app/controllers/api/v2/authentication_controller.rb``` [[jwtEncode]] Body Params로 넘어온 데이터를 참조하여 JWT 토큰을 생성합니다.
+4. ```app/controllers/api/v2/bookmarks_controller.rb``` [[bookMarkController]] 유저에 따른 북마크 리스트를 조회합니다.
+5. ```app/controllers/api/v2/keyword_pushalarms_controller.rb``` [[keywordController]] 유저에 따른 키워드 알람 리스트를 조회 및 키워드를 설정합니다.
+6. ```app/controllers/api/v2/hit_products_controller.rb``` [[hitProductController]] API 통신에 있어 핫딜 상품 조회, 검색, 1주간 Top 100 순위 상품 조회를 합니다. 
+7. ```app/controllers/api/v2/notices_controller.rb``` [[noticeController]] 앱에 보여질 공지사항 글 리스트를 조회합니다.
+
 [jwtDecode]: /lib/json_web_token.rb
-[jwtEncode]: /app/controllers/authentication_controller.rb
-[apiController]: /app/controllers/apis_controller.rb
-[hitProductController]: /app/controllers/hit_products_controller.rb
+[baseController]: /app/controllers/api/v2/base_controller.rb
+[jwtEncode]: /app/controllers/api/v2/authentication_controller.rb
+[bookMarkController]: /app/controllers/api/v2/bookmarks_controller.rb
+[keywordController]: /app/controllers/api/v2/keyword_pushalarms_controller.rb
+[hitProductController]: /app/controllers/api/v2/hit_products_controller.rb
+[noticeController]: /app/controllers/api/v2/notices_controller.rb
 
 
 ## 8. M : 모델 설명
