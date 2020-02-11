@@ -46,6 +46,10 @@ Rails.application.routes.draw do
   post 'keyword-create' => 'apis#keyword_create'
   delete 'keyword-destroy' => 'apis#keyword_destroy'
   get 'keyword-pushalarm-list' => 'apis#keyword_pushalarm_list'
+  
+  ## 공지사항
+  resources :notices
+  get '/notice.json' => 'notices#index_json'
   # ------------------------------------ v 1.1 ---------------------------------------------
   
   
@@ -83,10 +87,6 @@ Rails.application.routes.draw do
     end
   end
   # ------------------------------------ v 2.0 ---------------------------------------------
-  
-  ## 공지사항
-  resources :notices
-  get '/notice.json' => 'notices#index_json'
 
   devise_for :users
 
